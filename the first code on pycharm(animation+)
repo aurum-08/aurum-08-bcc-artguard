@@ -1,0 +1,122 @@
+import pygame
+import sys
+import math
+import os
+
+WIDTH, HEIGHT = 1000, 900
+FPS = 60
+
+
+BG_COLOR = (11, 18, 32)
+SAFE_COLOR = (0, 171, 117)
+DANGER_COLOR = (220, 38, 38)
+GOLD = (201, 162, 39)
+WHITE = (240, 240, 240)
+GRAY = (148, 163, 184)
+
+
+pygame.init()
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("BCC ArtGuard — Индикатор безопасности")
+clock = pygame.time.Clock()
+
+
+font_large = pygame.font.SysFont("Arial", 32, bold=True)
+font_medium = pygame.font.SysFont("Arial", 22)
+font_small = pygame.font.SysFont("Arial", 18)
+
+def load_image(name):
+    if not os.path.exists(name):
+        print(f"Ошибка: файл {name} не найден!")
+        print("Положи safe.png и danger.png в ту же папку, где лежит этот скрипт.")
+        pygame.quit()
+        sys.exit()
+    img = pygame.image.load(name).convert_alpha()
+    return img
+
+safe_img_original = load_image("safe.png")
+danger_img_original = load_image("danger.png")
+
+
+IMG_SIZE = 620
+safe_img = pygame.transform.smoothscale(safe_img_original, (IMG_SIZE, IMG_SIZE))
+danger_img = pygame.transform.smoothscale(danger_img_original, (IMG_SIZE, IMG_SIZE))
+
+
+status = "safe"
+transition = 0.0
+transition_speed = 0.025
+pulse = 0.0
+
+
+running = True
+while running:
+    dt = clock.tick(FPS) / 1000.0
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE:
+                status = "danger" if status == "safe" else "safe"
+            if event.key == pygame.K_ESCAPE:
+                running = False
+
+    target = 1.0 if status == "danger" else 0.0
+    if transition < target:
+        transition = min(1.0, transition + transition_speed)
+    elif transition > target:
+        transition = max(0.0, transition - transition_speed)
+
+
+    pulse += dt * (2.5 if status == "safe" else 5.0)
+
+
+    screen.fill(BG_COLOR)
+
+    center_x = WIDTH // 2
+    center_y = HEIGHT // 2 - 30
+
+
+    pulse_scale = 1.0 + math.sin(pulse) * (0.012 if status == "safe" else 0.025)
+    current_size = int(IMG_SIZE * pulse_scale)
+
+
+    safe_scaled = pygame.transform.smoothscale(safe_img, (current_size, current_size))
+    danger_scaled = pygame.transform.smoothscale(danger_img, (current_size, current_size))
+
+
+    img_rect = safe_scaled.get_rect(center=(center_x, center_y))
+
+    screen.blit(safe_scaled, img_rect)
+
+
+    if transition > 0:
+        danger_scaled.set_alpha(int(transition * 255))
+        screen.blit(danger_scaled, img_rect)
+
+
+    title = font_large.render("BCC ArtGuard", True, GOLD)
+    screen.blit(title, title.get_rect(center=(WIDTH // 2, 55)))
+
+
+    if status == "safe":
+        status_text = "СТАТУС: БЕЗОПАСНО"
+        status_color = SAFE_COLOR
+    else:
+        status_text = "⚠ ПОДОЗРИТЕЛЬНАЯ АКТИВНОСТЬ"
+        status_color = DANGER_COLOR
+
+    status_surf = font_medium.render(status_text, True, status_color)
+    screen.blit(status_surf, status_surf.get_rect(center=(WIDTH // 2, HEIGHT - 95)))
+
+
+    hint = font_small.render("Пробел - сменить статус    |    Esc - выход", True, GRAY)
+    screen.blit(hint, hint.get_rect(center=(WIDTH // 2, HEIGHT - 50)))
+
+    pygame.draw.line(screen, GOLD, (WIDTH//2 - 120, 85), (WIDTH//2 + 120, 85), 2)
+
+    pygame.display.flip()
+
+pygame.quit()
+sys.exit()
